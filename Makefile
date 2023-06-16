@@ -39,6 +39,9 @@ $(BT2SCAN): $(BUILDDIR)/bt2scan_api.o $(BUILDDIR)/buzz_logging.o $(BUILDDIR)/buz
 testargs: $(BUILDDIR)/buzz_logging.o tests/test_args.c $(BUILDDIR)/buzz_opts.o
 	$(CC) $(CFLAGS) -o tests/testargs  $(BUILDDIR)/buzz_logging.o $(BUILDDIR)/buzz_opts.o tests/test_args.c $(LDFLAGS)
 
+cunit: $(BUILDDIR)/buzz_logging.o tests/cunit.c $(BUILDDIR)/buzz_opts.o
+	$(CC) $(CFLAGS) -o tests/cuint  $(BUILDDIR)/buzz_logging.o $(BUILDDIR)/buzz_opts.o tests/cunit.c $(LDFLAGS) -lcunit
+
 
 .PHONY: db
 db:

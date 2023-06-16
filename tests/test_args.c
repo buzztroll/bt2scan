@@ -1,3 +1,4 @@
+#include <CUnit/CUnit.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "buzz_opts.h"
