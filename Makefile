@@ -1,6 +1,9 @@
 CC=gcc
 INCLUDE=include
-CFLAGS=-I$(INCLUDE) -g -Wall
+CFLAGS_AS=-fsanitize=address
+#CFLAGS_AS=
+CFLAGS=-I$(INCLUDE) -Wall -ggdb -fno-omit-frame-pointer $(CFLAGS_AS)
+
 BT_LIBS=-lbluetooth
 DB_LIBS=-lsqlite3
 BINDIR=bin
@@ -9,6 +12,7 @@ BUILDDIR=build
 BT2DB=$(BINDIR)/bt2db
 BT2SCAN=$(BINDIR)/bt2scan
 PROGRAMS=$(BT2DB) $(BT2SCAN)
+LDFLAGS=-static-libgcc 
 
 all: $(PROGRAMS)
 
@@ -22,11 +26,15 @@ $(BUILDDIR)/bt2scan_api.o: $(SRC)/bt2scan_api.c $(INCLUDE)/bt2scan_api.h
 $(BUILDDIR)/bt2db_api.o: $(SRC)/bt2db_api.c $(INCLUDE)/bt2db_api.h
 	$(CC) -c -o $@ $< $(CFLAGS)
 
-$(BT2DB): $(BUILDDIR)/bt2db_api.o $(BUILDDIR)/buzz_logging.o src/cmd/bt2db.c
-	$(CC) $(CFLAGS) -o $(BT2DB) $(BUILDDIR)/bt2db_api.o $(BUILDDIR)/buzz_logging.o src/cmd/bt2db.c $(DB_LIBS)
+$(BT2DB): $(BUILDDIR)/bt2db_api.o $(BUILDDIR)/buzz_logging.o src/cmd/bt2db.c 
+	$(CC) $(CFLAGS) -o $(BT2DB) $(BUILDDIR)/bt2db_api.o $(BUILDDIR)/buzz_logging.o src/cmd/bt2db.c -static-libasan $(DB_LIBS) $(LDFLAGS)
 
 $(BT2SCAN): $(BUILDDIR)/bt2scan_api.o $(BUILDDIR)/buzz_logging.o src/cmd/bt2scan.c
-	$(CC) $(CFLAGS) -o $(BT2DB) $(BUILDDIR)/bt2scan_api.o $(BUILDDIR)/buzz_logging.o src/cmd/bt2scan.c $(BT_LIBS)
+	$(CC) $(CFLAGS) -o $(BT2SCAN) $(BUILDDIR)/bt2scan_api.o $(BUILDDIR)/buzz_logging.o src/cmd/bt2scan.c -static-libasan $(BT_LIBS) $(LDFLAGS)
+
+.PHONY: db
+db:
+	sqlite3 locations.db < ddl/locations.ddl
 
 .PHONY: clean
 
