@@ -1,7 +1,5 @@
+# TODO list
 
-- README
+This 
 - cleanup format
 - gps
-- Make file cleanup
-  - make db
-  - general
