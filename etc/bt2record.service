@@ -1,0 +1,15 @@
+[Unit]
+Description=BuzzTroll Bluetooth Scanner
+After=bluetooth.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=5
+User=root
+ExecStart=/usr/local/bin/bt2record -l DEBUG /usr/local/location.db
+StandardError=append:/var/log/bt2record.log
+
+[Install]
+WantedBy=multi-user.target
