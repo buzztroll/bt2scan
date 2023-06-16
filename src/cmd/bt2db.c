@@ -4,6 +4,7 @@
 #include <sqlite3.h>
 
 #include "buzz_logging.h"
+#include "buzz_opts.h"
 #include "bt2db_api.h"
 
 #define ARG_INDEX_DB 0
@@ -11,24 +12,6 @@
 #define ARG_INDEX_NAME 2
 #define ARG_INDEX_LAST 2
 
-
-static struct option cli_options[] = {
-    { "help",   0, NULL, 'h' },
-    { "log-level",   required_argument, NULL, 'l' },
-    { "latitude",   required_argument, NULL, 'x' },
-    { "longitude",   required_argument, NULL, 'y' },
-    { 0, 0, NULL, 0 }
-};
-
-static void print_usage(void) {
-    fprintf(stderr, "bt2db [options] <path to db> <name> <address>\n");
-    fprintf(stderr, "-----\n");
-    fprintf(stderr, "Add Bluetooth and GPS info to the database.\n");
-    fprintf(stderr, "If the -x and -y options are used add location info also\n");
-    fprintf(stderr, "-x|--latitude <latitude>\n");
-    fprintf(stderr, "-y|--longitude <longitude>\n");
-    fprintf(stderr, "-l|--log-level <ERROR|WARN|INFO|DEBUG>\n");
-}
 
 int main(int argc, char ** argv)
 {
@@ -44,8 +27,19 @@ int main(int argc, char ** argv)
     char * address;
     bt2_db_handle_t * db_handle;
     bt2_db_device_info_t device_info;
+    buzz_opts_handle_t * buzz_opts;
+    char * pgm_args[] = {"path to db", "name", "address", NULL};
 
-    while ((opt = getopt_long(argc, argv, "d:hl:x:y:", cli_options, &option_index)) != -1) {
+    buzz_opts_init(&buzz_opts, "bt2db", "Add Bluetooth and GPS info to the database.", pgm_args);
+    buzz_opts_add_option(buzz_opts, "log-level", 'l', 1, "<ERROR|WARN|INFO|DEBUG>");
+    buzz_opts_add_option(buzz_opts, "lattitude", 'x', 1, "Floating point lattitude.");
+    buzz_opts_add_option(buzz_opts, "longitude", 'y', 1, "Floating point longitude.");
+    buzz_opts_add_option(buzz_opts, "help", 'h', 0, "Show help");
+
+    char * short_opts = buzz_opts_create_short_opts(buzz_opts);
+    struct option * cli_options = buzz_opts_create_long_opts(buzz_opts);
+
+    while ((opt = getopt_long(argc, argv, short_opts, cli_options, &option_index)) != -1) {
         switch (opt) {
         case 'l':
             set_log_level(optarg);
@@ -61,14 +55,15 @@ int main(int argc, char ** argv)
 
         case 'h':
         default:
-            print_usage();
+            buzz_opts_print_usage(buzz_opts, stdout);
+            buzz_opts_destroy(buzz_opts);
             return 0;
         }
     }
 
     if (optind + ARG_INDEX_LAST >= argc) {
-        print_usage();
-        return 1;
+        buzz_opts_print_usage(buzz_opts, stderr);
+        goto opts_error;
     }
 
     db_path = argv[optind+ARG_INDEX_DB];
@@ -77,33 +72,33 @@ int main(int argc, char ** argv)
 
     if ((lat_str == NULL) ^ (long_str == NULL)) {
         fprintf(stderr, "lattitude and longitude must be used together: %s\n", lat_str);
-        print_usage();
-        return 1;
+        buzz_opts_print_usage(buzz_opts, stderr);
+        goto opts_error;
     }
 
     logger(BUZZ_DEBUG, "DB is %s", db_path);
 
     rc = bt2_db_init(&db_handle, db_path);
     if (rc != BT2_DB_SUCCESS) {
-        print_usage();
-        return 1;
+        buzz_opts_print_usage(buzz_opts, stderr);
+        goto opts_error;
     }
 
     rc = bt2_db_find_device(db_handle, &device_info, address);
     if (rc == BT2_DB_ERROR) {
         logger(BUZZ_ERROR, "database error");
-        return 1;
+        goto db_error;
     }
     if (rc == BT2_DB_NOT_FOUND) {
         rc = bt2_db_add_device(db_handle, name, address);
         if (rc == BT2_DB_ERROR) {
             logger(BUZZ_ERROR, "failed to add the device");
-            return 1;
+            goto db_error;
         }
         rc = bt2_db_find_device(db_handle, &device_info, address);
         if (rc == BT2_DB_ERROR) {
             logger(BUZZ_ERROR, "failed to find device after adding it");
-            return 1;
+            goto db_error;
         }
         logger(BUZZ_INFO, "Successfully added a new device");
     }
@@ -115,25 +110,34 @@ int main(int argc, char ** argv)
         rc = sscanf(lat_str, "%lf", &latitude);
         if (rc != 1) {
             fprintf(stderr, "Lattitude must be a floating point: %s\n", lat_str);
-            print_usage();
-            return 1;
+            buzz_opts_print_usage(buzz_opts, stderr);
+            goto db_error;
         }
         rc = sscanf(long_str, "%lf", &longitude);
         if (rc != 1) {
             fprintf(stderr, "Longitude must be a floating point: %s\n", long_str);
-            print_usage();
-            return 1;
+            buzz_opts_print_usage(buzz_opts, stderr);
+            goto db_error;
         }
 
         rc = bt2_db_add_location(db_handle, &device_info, latitude, longitude);
         if (rc == BT2_DB_ERROR) {
             logger(BUZZ_ERROR, "add location failed");
-            return 1;
+            goto db_error;
         }
 
         logger(BUZZ_INFO, "Successfully added location information");
     }
+
+    buzz_opts_destroy(buzz_opts);
     bt2_db_destroy(db_handle);
 
     return 0;
+
+db_error:
+    bt2_db_destroy(db_handle);
+opts_error:
+    buzz_opts_destroy(buzz_opts);
+
+    return 1;
 }

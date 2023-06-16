@@ -16,6 +16,7 @@
 
 #include "bt2scan_api.h"
 #include "buzz_logging.h"
+#include "buzz_opts.h"
 
 #define FLAGS_LIMITED_MODE_BIT 0x01
 #define FLAGS_GENERAL_MODE_BIT 0x02
@@ -57,15 +58,6 @@ static int scan_devices(bt2_scan_t * scan_handle, int scan_time)
     return 0;
 }
 
-static struct option cli_options[] = {
-    { "help",   0, NULL, 'h' },
-    { "time", required_argument, NULL, 't' },
-    { 0, 0, NULL, 0 }
-};
-
-static void print_usage(void) {
-    fprintf(stderr, "buzztroll bluetooth scan is bt2scan!\n");
-}
 
 int main(int argc, char ** argv)
 {
@@ -75,8 +67,18 @@ int main(int argc, char ** argv)
     int opt;
     int time_to_run = 30;
     bt2_scan_t * scan_handle;
+    buzz_opts_handle_t * buzz_opts;
 
-    while ((opt = getopt_long(argc, argv, "t:hl:", cli_options, &option_index)) != -1) {
+
+    buzz_opts_init(&buzz_opts, "bt2scan", "Look for bluetooth le devices that are advertising nearby..", NULL);
+    buzz_opts_add_option(buzz_opts, "log-level", 'l', 1, "<ERROR|WARN|INFO|DEBUG>");
+    buzz_opts_add_option(buzz_opts, "scan-time", 't', 1, "The number of seconds to look for devices..");
+    buzz_opts_add_option(buzz_opts, "help", 'h', 0, "Show help");
+
+char * short_opts = buzz_opts_create_short_opts(buzz_opts);
+    struct option * cli_options = buzz_opts_create_long_opts(buzz_opts);
+
+    while ((opt = getopt_long(argc, argv, short_opts, cli_options, &option_index)) != -1) {
         switch (opt) {
         case 't':
             time_to_run = atoi(optarg);
@@ -88,10 +90,12 @@ int main(int argc, char ** argv)
 
         case 'h':
         default:
-            print_usage();
+            buzz_opts_print_usage(buzz_opts, stderr);
+            buzz_opts_destroy(buzz_opts);
             return 0;
         }
     }
+    buzz_opts_destroy(buzz_opts);
 
     memset(&sa, 0, sizeof(sa));
     sa.sa_flags = SA_NOCLDSTOP;
