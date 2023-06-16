@@ -25,6 +25,10 @@ int bt2_scan_init(bt2_scan_t ** out_scan_handle) {
     struct hci_filter scan_filter;
 
     dev_id = hci_get_route(NULL);
+    if (dev_id < 0) {
+        logger(BUZZ_ERROR, "failed to find a bluetooth device");
+        return BT2_SCAN_ERROR;
+    }
 
     fd = hci_open_dev(dev_id);
     if (fd < 0) {
@@ -89,7 +93,7 @@ static int parse_record(bt2_scan_record_t * record_out, le_advertising_info * in
     size_t rec_buf_len;
     size_t offset;
 
-    logger(BUZZ_INFO, "parsing a record");
+    logger(BUZZ_DEBUG, "parsing a record");
 
     memset(record_out, '\0', sizeof(bt2_scan_record_t));
 
