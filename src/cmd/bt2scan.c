@@ -93,16 +93,16 @@ int main(int argc, char ** argv)
         }
     }
 
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_flags = SA_NOCLDSTOP;
+    sa.sa_handler = sig_handler;
+    sigaction(SIGINT, &sa, NULL);
+
     rc = bt2_scan_init(&scan_handle);
     if (rc != BT2_SCAN_SUCCESS) {
         logger(BUZZ_ERROR, "failed setup bluetooth");
         return 1;
     }
-
-    memset(&sa, 0, sizeof(sa));
-    sa.sa_flags = SA_NOCLDSTOP;
-    sa.sa_handler = sig_handler;
-    sigaction(SIGINT, &sa, NULL);
 
     logger(BUZZ_DEBUG, "Scanning ...");
 

@@ -39,12 +39,12 @@ int bt2_scan_init(bt2_scan_t ** out_scan_handle) {
                         own_type, filter_policy, 1000);
     if (rc < 0) {
         logger(BUZZ_ERROR, "Set scan parameters failed: %s", strerror(errno));
-        goto err;
+    //    goto err;
     }
     rc = hci_le_set_scan_enable(fd, 0x01, filter_dup, 1000);
     if (rc < 0) {
         logger(BUZZ_ERROR, "scan failed: %s", strerror(errno));
-        goto err;
+     //   goto err;
     }
     olen = sizeof(new_handle->start_filter_state);
     if (getsockopt(fd, SOL_HCI, HCI_FILTER, &new_handle->start_filter_state, &olen) < 0) {
@@ -77,6 +77,7 @@ err:
 int bt2_scan_destroy(bt2_scan_t * scan_handle) {
 
     setsockopt(scan_handle->fd, SOL_HCI, HCI_FILTER, &scan_handle->start_filter_state, sizeof(scan_handle->start_filter_state));
+    hci_le_set_scan_enable(scan_handle->fd, 0x00, 1, 1000);
     hci_close_dev(scan_handle->fd);
     free(scan_handle);
 
