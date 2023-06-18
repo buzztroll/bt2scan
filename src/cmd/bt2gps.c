@@ -11,28 +11,24 @@
 #include "bt2gps_api.h"
 
 int main(int argc, char ** argv) {
-    struct termios tty;
     float lat;
     float lon;
-
-    int serial_port = open("/dev/ttyS0", O_RDWR);
-    if (serial_port < 0) {
-        printf("Error %i from open: %s\n", errno, strerror(errno));
-    }
-
-    memset(&tty, 0, sizeof(tty));
-    if(tcgetattr(serial_port, &tty) != 0) {
-        printf("Error %i from tcgetattr: %s\n", errno, strerror(errno));
-    }
-    cfsetospeed (&tty, B9600);
+    int rc;
+    bt2_gps_handle_t * gps_handle;
     
+    rc = bt2_gps_init(&gps_handle, "/dev/ttyS0", B9600);
+    if (rc != BT2_GPS_SUCCESS) {
+        return 1;
+    }
 
-    int rc = bt2_gps_get_location(serial_port, &lat, &lon);
+    rc = bt2_gps_get_location(gps_handle, &lat, &lon);
     if (rc == BT2_GPS_ERROR) {
         logger(BUZZ_ERROR, "error reading line");
         return 1;
     }
     printf("%f,%f\n", lat, lon);
+
+    bt2_gps_destroy(gps_handle);
 
     return 0;
 }

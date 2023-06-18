@@ -5,6 +5,10 @@
 #include <sqlite3.h>
 #include <unistd.h>
 #include <ctype.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <termios.h>
+#include <unistd.h>
 
 #include "bt2gps_api.h"
 #include "buzz_logging.h"
@@ -115,30 +119,61 @@ static int parse_ggl(char * nmea, float * out_lat, float * out_lon) {
     return BT2_GPS_SUCCESS;
 }
 
-int bt2_gps_get_location(int serial_port, float * out_lat, float * out_lon) {
-   
+int bt2_gps_init(
+    bt2_gps_handle_t ** out_handle,
+    const char * serial_path,
+    speed_t baud) {
+    bt2_gps_handle_t * new_handle;
+    struct termios tty;
+
+
+    new_handle = (bt2_gps_handle_t *) calloc(1, sizeof(bt2_gps_handle_t));
+    new_handle->serial_port = open(serial_path, O_RDWR);
+    if (new_handle->serial_port < 0) {
+        logger(BUZZ_ERROR, "Failed to open %s: %s", serial_path, strerror(errno));
+        return BT2_GPS_ERROR;
+    }
+
+    memset(&tty, 0, sizeof(tty));
+    if(tcgetattr(new_handle->serial_port, &tty) != 0) {
+        printf("Error %i from tcgetattr: %s\n", errno, strerror(errno));
+    }
+    cfsetospeed (&tty, baud);
+
+    *out_handle = new_handle;
+
+    return BT2_GPS_SUCCESS;
+}
+
+int bt2_gps_destroy(bt2_gps_handle_t * handle) {
+    close(handle->serial_port);
+    free(handle);
+    return BT2_GPS_SUCCESS;
+}
+
+int bt2_gps_get_location(bt2_gps_handle_t * gps_handle, float * out_lat, float * out_lon) {
     size_t n;
     size_t comma_ndx = 0;
     char buffer[BT2_GPS_MAX_LINE];
     int done = 0;
 
     while (!done) {
-        n = read_until_char(serial_port, buffer, BT2_GPS_MAX_LINE, ',');
+        n = read_until_char(gps_handle->serial_port, buffer, BT2_GPS_MAX_LINE, ',');
         if (n < 0) {
             logger(BUZZ_ERROR, "Failed to find the first comma");
-            return n;
+            return BT2_GPS_ERROR;
         }
         comma_ndx = n-1;
 
-        n = read_until_char(serial_port, &buffer[n], BT2_GPS_MAX_LINE, '\n');
+        n = read_until_char(gps_handle->serial_port, &buffer[n], BT2_GPS_MAX_LINE, '\n');
         if (n < 0) {
             logger(BUZZ_ERROR, "Failed to find the first comma");
-            return n;
+            return BT2_GPS_ERROR;
         }
-        buffer[n+comma_ndx+1] = '\0';
+        buffer[n+comma_ndx] = '\0';
         if (strncmp(buffer, GLL_STRING, comma_ndx) == 0 && comma_ndx >= GLL_LEN) {
             return parse_ggl(buffer, out_lat, out_lon);
         }
     }
-    return n;
+    return BT2_GPS_SUCCESS;
 }

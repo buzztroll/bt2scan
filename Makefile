@@ -12,7 +12,7 @@ BUILDDIR=build
 BT2DB=$(BINDIR)/bt2db
 BT2SCAN=$(BINDIR)/bt2scan
 BT2GPS=$(BINDIR)/bt2gps
-PROGRAMS=$(BT2DB) $(BT2SCAN)
+PROGRAMS=$(BT2DB) $(BT2SCAN) $(BT2GPS)
 LDFLAGS=-static-libgcc -static-libasan
 #LDFLAGS=
 
