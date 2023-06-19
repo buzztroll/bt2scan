@@ -51,6 +51,10 @@ test_args: $(BUILDDIR)/buzz_logging.o tests/test_args.c $(BUILDDIR)/buzz_opts.o
 	$(CC) $(CFLAGS) -o tests/test-args  $(BUILDDIR)/buzz_logging.o $(BUILDDIR)/buzz_opts.o tests/test_args.c $(LDFLAGS) -lcunit
 
 
+install: $(BT2RECORD) db
+	cp bin/bt2record /usr/local/bin/bt2record
+	cp locations.db /usr/local/location.db
+
 .PHONY: db
 db:
 	sqlite3 locations.db < ddl/locations.ddl
