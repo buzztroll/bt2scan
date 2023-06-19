@@ -37,6 +37,7 @@ static int read_until_char(int fd, char * buf, size_t max_size, char term_char) 
         if (strchr(SKIP_CHARS, buf[ndx]) == NULL) {
             ndx = ndx + n;
             if (ndx >= max_size) {
+                logger(BUZZ_WARN, "exceeded the max size of %d", max_size);
                 return BT2_GPS_NOT_FOUND;
             }
         }
@@ -126,14 +127,15 @@ int bt2_gps_init(
     bt2_gps_handle_t * new_handle;
     struct termios tty;
 
-
+    logger(BUZZ_DEBUG, "Opening the serial port for bluetooth");
     new_handle = (bt2_gps_handle_t *) calloc(1, sizeof(bt2_gps_handle_t));
     new_handle->serial_port = open(serial_path, O_RDWR);
     if (new_handle->serial_port < 0) {
         logger(BUZZ_ERROR, "Failed to open %s: %s", serial_path, strerror(errno));
-        return BT2_GPS_ERROR;
+        goto error;
     }
 
+    logger(BUZZ_DEBUG, "Set tty options");
     memset(&tty, 0, sizeof(tty));
     if(tcgetattr(new_handle->serial_port, &tty) != 0) {
         printf("Error %i from tcgetattr: %s\n", errno, strerror(errno));
@@ -143,6 +145,9 @@ int bt2_gps_init(
     *out_handle = new_handle;
 
     return BT2_GPS_SUCCESS;
+error:
+    free(new_handle);
+    return BT2_GPS_ERROR;
 }
 
 int bt2_gps_destroy(bt2_gps_handle_t * handle) {
@@ -158,19 +163,22 @@ int bt2_gps_get_location(bt2_gps_handle_t * gps_handle, float * out_lat, float *
     int done = 0;
 
     while (!done) {
+        logger(BUZZ_DEBUG, "Getting command type...");
         n = read_until_char(gps_handle->serial_port, buffer, BT2_GPS_MAX_LINE, ',');
-        if (n < 0) {
+        if (n <= 0) {
             logger(BUZZ_ERROR, "Failed to find the first comma");
             return BT2_GPS_ERROR;
         }
         comma_ndx = n-1;
 
+        logger(BUZZ_DEBUG, "reading the rest of the command...");
         n = read_until_char(gps_handle->serial_port, &buffer[n], BT2_GPS_MAX_LINE, '\n');
-        if (n < 0) {
+        if (n <= 0) {
             logger(BUZZ_ERROR, "Failed to find the first comma");
             return BT2_GPS_ERROR;
         }
         buffer[n+comma_ndx] = '\0';
+        logger(BUZZ_DEBUG, "read command %s", buffer);
         if (strncmp(buffer, GLL_STRING, comma_ndx) == 0 && comma_ndx >= GLL_LEN) {
             return parse_ggl(buffer, out_lat, out_lon);
         }
