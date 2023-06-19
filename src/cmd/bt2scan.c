@@ -18,15 +18,6 @@
 #include "buzz_logging.h"
 #include "buzz_opts.h"
 
-#define FLAGS_LIMITED_MODE_BIT 0x01
-#define FLAGS_GENERAL_MODE_BIT 0x02
-
-#define EIR_FLAGS                   0x01
-#define EIR_NAME_SHORT              0x08
-#define EIR_NAME_COMPLETE           0x09
-
-#define MAX_NAME_LENGTH 128
-
 
 static void sig_handler(int signum) {
     logger(BUZZ_DEBUG,"received signal %d", signum);

@@ -1,6 +1,8 @@
 #ifndef BT2_DB_API_H
 #define BT2_DB_API_H 1
 
+#include <sqlite3.h>
+
 #define BT2_DB_SUCCESS 0
 #define BT2_DB_ERROR -1
 #define BT2_DB_NOT_FOUND -2
