@@ -46,10 +46,11 @@ $(BT2GPS): $(BUILDDIR)/buzz_logging.o $(BUILDDIR)/buzz_opts.o $(BUILDDIR)/bt2gps
 $(BT2RECORD): $(BUILDDIR)/buzz_logging.o $(BUILDDIR)/buzz_opts.o $(BUILDDIR)/bt2gps_api.o $(BUILDDIR)/bt2db_api.o $(BUILDDIR)/bt2scan_api.o src/cmd/bt2record.c
 	$(CC) $(CFLAGS) -o $(BT2RECORD) $(BUILDDIR)/buzz_logging.o $(BUILDDIR)/buzz_opts.o $(BUILDDIR)/bt2gps_api.o $(BUILDDIR)/bt2scan_api.o $(BUILDDIR)/bt2db_api.o  src/cmd/bt2record.c -static-libasan $(LDFLAGS) $(DB_LIBS) $(BT_LIBS)
 
-
 test_args: $(BUILDDIR)/buzz_logging.o tests/test_args.c $(BUILDDIR)/buzz_opts.o
 	$(CC) $(CFLAGS) -o tests/test-args  $(BUILDDIR)/buzz_logging.o $(BUILDDIR)/buzz_opts.o tests/test_args.c $(LDFLAGS) -lcunit
 
+install: $(BT2RECORD) db
+	cp bin/bt2record /usr/local/bin/bt2record
 
 .PHONY: db
 db:
