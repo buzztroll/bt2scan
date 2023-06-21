@@ -30,7 +30,8 @@ The project design is quite simple. I have three modules:
    currently uses bluez HCI implementation but I am hoping to remove this
    dependency and write my own for the learning experience.
 2. bt2db: This is a thin wrapper around SQLite used to store the data.
-3. bt2gps: This is the internal API for interacting with the GPS hardware (TBD).
+3. bt2gps: This is the internal API for interacting with the GPS hardware,
+   Navigation Satellite Positioning NEO-6M: https://www.amazon.com/dp/B084MK8BS2?psc=1&ref=ppx_yo2ov_dt_b_product_details
 
 ## Code Layout
 

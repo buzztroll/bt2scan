@@ -14,8 +14,9 @@ typedef struct bt2_db_handle_s {
 
 typedef struct bt2_db_device_info_s {
     int device_id;
-    char * name;
-    char * address;
+    const unsigned char * name;
+    const unsigned char * address;
+    int update;
 } bt2_db_device_info_t;
 
 int bt2_db_init(

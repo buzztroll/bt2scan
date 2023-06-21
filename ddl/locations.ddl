@@ -3,7 +3,8 @@ CREATE TABLE IF NOT EXISTS devices (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
     create_time         DATETIME DEFAULT CURRENT_TIMESTAMP,
     name                string,
-    address             string UNIQUE
+    address             string UNIQUE,
+    update_location     INTEGER default 1
 );
 
 CREATE TABLE IF NOT EXISTS locations (

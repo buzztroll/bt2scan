@@ -26,7 +26,7 @@
 static int _g_canceled = 0;
 
 static void sig_handler(int signum) {
-    logger(BUZZ_INFO,"received signal %d", signum);
+    logger(BUZZ_INFO,"received signal %d %d %d", signum, SIGINT, SIGTERM);
     _g_canceled = 1;
 }
 
@@ -34,7 +34,8 @@ static int add_record(
     bt2_db_handle_t * db_handle,
     bt2_scan_record_t * record,
     float latitude,
-    float longitude) {
+    float longitude,
+    int add_location) {
     bt2_db_device_info_t device_info;
     int rc;
 
@@ -58,11 +59,16 @@ static int add_record(
         }
         logger(BUZZ_INFO, "Successfully added a new device");
     }
-    logger(BUZZ_INFO, "Adding location info for %s", record->full_name);
-    rc = bt2_db_add_location(db_handle, &device_info, latitude, longitude);
-    if (rc == BT2_DB_ERROR) {
-        logger(BUZZ_ERROR, "add location failed");
-        return 1;
+    if (device_info.update && add_location) {
+        logger(BUZZ_INFO, "Adding location info for %s", record->full_name);
+        rc = bt2_db_add_location(db_handle, &device_info, latitude, longitude);
+        if (rc == BT2_DB_ERROR) {
+            logger(BUZZ_ERROR, "add location failed");
+            return 1;
+        }
+    }
+    else {
+        logger(BUZZ_INFO, "Skipping location info for %s", record->full_name);
     }
     return 0;
 }
@@ -76,6 +82,8 @@ static int scan_devices(
     bt2_scan_record_t record;
     bt2_scan_t * scan_handle;
     time_t end_time;
+    time_t when;
+    int add_location;
 
     /* open and close the BT device on every iteration */
     rc = bt2_scan_init(&scan_handle);
@@ -101,14 +109,17 @@ static int scan_devices(
 
                 logger(BUZZ_INFO, "Found a record: %s", record.full_name);
 
-                rc = bt2_gps_get_location_now(gps_handle, &lat, &lon);
+                add_location = 1;
+                rc = bt2_gps_get_last_known_location(gps_handle, &lat, &lon, &when);
                 if (rc != BT2_GPS_SUCCESS) {
-                    goto scan_err;
+                    logger(BUZZ_ERROR, "Failed to get location, adding the device info without location");
+                    add_location = 0;
                 }
 
                 logger(BUZZ_INFO, "Found record to db with lat %f lon %f", lat, lon);
-                rc = add_record(db_handle, &record, lat, lon);
+                rc = add_record(db_handle, &record, lat, lon, add_location);
                 if (rc != BT2_GPS_SUCCESS) {
+                    logger(BUZZ_ERROR, "failed to add record");
                     goto scan_err;
                 }
             }
@@ -184,9 +195,9 @@ int main(int argc, char ** argv)
     db_path = argv[optind+ARG_INDEX_DB];
 
     memset(&sa, 0, sizeof(sa));
-    sa.sa_flags = SA_NOCLDSTOP;
     sa.sa_handler = sig_handler;
     sigaction(SIGINT, &sa, NULL);
+    sigaction(SIGTERM, &sa, NULL);
 
     rc = bt2_db_init(&db_handle, db_path);
     if (rc != BT2_DB_SUCCESS) {
@@ -206,14 +217,13 @@ int main(int argc, char ** argv)
         goto gps_start_err;
     }
 
-
     while (!done) {
         logger(BUZZ_DEBUG, "starting a pass...");
 
         rc = scan_devices(db_handle, gps_handle, scan_time);
         if (rc != 0) {
-            logger(BUZZ_ERROR, "one pass failed");
-            return 1;
+            logger(BUZZ_ERROR, "scan_devices failed");
+            goto gps_running_err;
         }
         logger(BUZZ_DEBUG, "Waiting %ds for next scan", delay);
         if (!_g_canceled) {
@@ -227,6 +237,8 @@ int main(int argc, char ** argv)
     bt2_db_destroy(db_handle);
     return 0;
 
+gps_running_err:
+    bt2_gps_stop(gps_handle);
 gps_start_err:
     bt2_gps_destroy(gps_handle);
 gps_init_err:
