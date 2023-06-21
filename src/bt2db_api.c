@@ -73,7 +73,7 @@ int bt2_db_find_device(
     bt2_db_device_info_t * out_device_info,
     const char * address) {
 
-    static const char * sql_q = "SELECT id, address, name from devices where address = ?";
+    static const char * sql_q = "SELECT id, address, name, update_location from devices where address = ?";
     sqlite3_stmt *stmt;
     int rc;
     int id = BT2_DB_NOT_FOUND;
@@ -91,6 +91,11 @@ int bt2_db_find_device(
             goto error;
         }
         id = sqlite3_column_int(stmt, 0);
+        out_device_info->address = sqlite3_column_text(stmt, 1);
+        out_device_info->name = sqlite3_column_text(stmt, 2);
+        out_device_info->update = sqlite3_column_int(stmt, 3);
+
+        out_device_info->device_id = id;
         logger(BUZZ_DEBUG, "Found id %d", id);
     }
     sqlite3_finalize(stmt);

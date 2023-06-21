@@ -218,14 +218,17 @@ static int get_i_location(
         }
         else if(strcmp(RMC_STRING, words[0]) == 0) {
             if (word_count < 7) {
+                logger(BUZZ_DEBUG, "Bad RMC, not enough words");
                 return BT2_GPS_ERROR;
             }
             rc = daysmins_to_float(words[3], *words[4], out_lat);
             if (rc != BT2_GPS_SUCCESS) {
+                logger(BUZZ_DEBUG, "failed to parse RMC lat %s %s", words[3], *words[4]);
                 return BT2_GPS_ERROR;
             }
             rc = daysmins_to_float(words[5], *words[6], out_lon);
             if (rc != BT2_GPS_SUCCESS) {
+                logger(BUZZ_DEBUG, "failed to parse RMC lon %s %s", words[5], *words[6]);
                 return BT2_GPS_ERROR;
             }
             return BT2_GPS_SUCCESS;
