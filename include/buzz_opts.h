@@ -1,3 +1,10 @@
+/*
+ * Argument parsing module
+ *
+ * This module helps setup CLI arguments. It is a thin wrapper around getopt. The main
+ * advantage is that it make displaying usage information easy. See the programs under
+ * ./src/cmd for examples.
+ */
 #ifndef BT2_OPTS_H
 #define BT2_OPTS_H 1
 

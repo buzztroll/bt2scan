@@ -110,8 +110,8 @@ error:
 int bt2_db_add_location(
     bt2_db_handle_t * handle,
     bt2_db_device_info_t * device,
-    double latitude,
-    double longitude) {
+    float latitude,
+    float longitude) {
     static const char * sql_q = "INSERT into locations(device_id, lat, long) values (?, ?, ?)";
     int rc;
     sqlite3_stmt *stmt;
@@ -127,7 +127,7 @@ int bt2_db_add_location(
     sqlite3_bind_double(stmt, 3, longitude);
     rc = sqlite3_step(stmt);
     if (rc != SQLITE_DONE) {
-       logger(BUZZ_ERROR, "sql insert step failed: %s", sqlite3_errmsg(handle->sqlite_db));
+        logger(BUZZ_ERROR, "sql insert step failed: %s", sqlite3_errmsg(handle->sqlite_db));
         goto error;
     }
 

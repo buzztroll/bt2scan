@@ -60,13 +60,12 @@ int main(int argc, char ** argv)
     bt2_scan_t * scan_handle;
     buzz_opts_handle_t * buzz_opts;
 
-
     buzz_opts_init(&buzz_opts, "bt2scan", "Look for bluetooth le devices that are advertising nearby..", NULL);
     buzz_opts_add_option(buzz_opts, "log-level", 'l', 1, "<ERROR|WARN|INFO|DEBUG>");
     buzz_opts_add_option(buzz_opts, "scan-time", 't', 1, "The number of seconds to look for devices..");
     buzz_opts_add_option(buzz_opts, "help", 'h', 0, "Show help");
 
-char * short_opts = buzz_opts_create_short_opts(buzz_opts);
+    char * short_opts = buzz_opts_create_short_opts(buzz_opts);
     struct option * cli_options = buzz_opts_create_long_opts(buzz_opts);
 
     while ((opt = getopt_long(argc, argv, short_opts, cli_options, &option_index)) != -1) {
@@ -107,4 +106,6 @@ char * short_opts = buzz_opts_create_short_opts(buzz_opts);
     }
 
     bt2_scan_destroy(scan_handle);
+
+    return 0;
 }

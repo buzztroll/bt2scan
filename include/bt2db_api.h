@@ -9,7 +9,7 @@
 
 typedef struct bt2_db_handle_s {
     sqlite3 * sqlite_db;
-    char * db_path;
+    const char * db_path;
 } bt2_db_handle_t;
 
 typedef struct bt2_db_device_info_s {
@@ -39,8 +39,8 @@ int bt2_db_find_device(
 int bt2_db_add_location(
     bt2_db_handle_t * handle, 
     bt2_db_device_info_t * device,
-    double latitude,
-    double longitude);
+    float latitude,
+    float longitude);
 
 
 #endif
