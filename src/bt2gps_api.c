@@ -15,13 +15,50 @@
 #include "buzz_logging.h"
 
 #define BT2_GPS_MAX_LINE 8192
-#define MAX_PARSE_WORDS 16
-
-#define SKIP_CHARS "\r\n"
+#define BT2_GPS_MAX_PARSE_WORDS 16
 
 #define GLL_STRING "$GPGLL"
 #define RMC_STRING "$GPRMC"
-#define GLL_LEN 6
+
+
+typedef struct nmea_i_parser_s {
+    const char * type;
+    int word_count;
+    int lat_ndx;
+    int lat_hem_ndx;
+    int lon_ndx;
+    int lon_hem_ndx;
+ } nmea_i_parser_t;
+
+
+nmea_i_parser_t * g_nmea_sentence_map = NULL;
+
+/*
+ * Each entry is a description of where the lattitude/longitude information is in the word list
+ * The array is null terminated
+ */
+ static int initialize_map() {
+    static int type_count = 2;
+
+    g_nmea_sentence_map = (nmea_i_parser_t *) calloc(type_count+1, sizeof(nmea_i_parser_t));
+
+    g_nmea_sentence_map[0].type = "$GPRMC";
+    g_nmea_sentence_map[0].word_count = 7;
+    g_nmea_sentence_map[0].lat_ndx = 3;
+    g_nmea_sentence_map[0].lat_hem_ndx = 4;
+    g_nmea_sentence_map[0].lon_ndx = 5;
+    g_nmea_sentence_map[0].lon_hem_ndx = 7;
+
+    g_nmea_sentence_map[1].type = "$GPGLL";
+    g_nmea_sentence_map[1].word_count = 5;
+    g_nmea_sentence_map[1].lat_ndx = 1;
+    g_nmea_sentence_map[1].lat_hem_ndx = 2;
+    g_nmea_sentence_map[1].lon_ndx = 3;
+    g_nmea_sentence_map[1].lon_hem_ndx = 4;
+
+    return 0;
+ }
+
 
 
 static int read_until_char(int fd, char * buf, size_t max_size, char term_char) {
@@ -80,6 +117,11 @@ int bt2_gps_init(
     speed_t baud) {
     bt2_gps_handle_t * new_handle;
     struct termios tty;
+
+    if (g_nmea_sentence_map == NULL) {
+        logger(BUZZ_DEBUG, "Setting up the sentence parse in global memory");
+        initialize_map();
+    }
 
     logger(BUZZ_DEBUG, "Opening the serial port for bluetooth");
     new_handle = (bt2_gps_handle_t *) calloc(1, sizeof(bt2_gps_handle_t));
@@ -152,7 +194,8 @@ static int read_sentence(
     return BT2_GPS_SUCCESS;
 }
 
-static int split_sentenct(char * buffer, size_t buf_len, char ** out_words, size_t word_count) {
+/* We avoid the need for heap memory by spliting the sentence in place by overwriting ',' with '\0' */
+static int split_sentence(char * buffer, size_t buf_len, char ** out_words, size_t word_count) {
 
     int current_word = 0;
     char * ptr;
@@ -172,6 +215,25 @@ static int split_sentenct(char * buffer, size_t buf_len, char ** out_words, size
     return current_word;
 }
 
+static int parse_out_location(nmea_i_parser_t * parser, char ** words, const int word_count, float * out_lat, float * out_lon) {
+    int rc;
+
+    logger(BUZZ_DEBUG, "Parsing sentence type %s", parser->type);
+    if (word_count < parser->word_count) {
+        logger(BUZZ_DEBUG, "Bad %s sentence, required at least %d words but found %d", parser->type, parser->word_count, word_count);
+        return BT2_GPS_ERROR;
+    }
+    rc = daysmins_to_float(words[parser->lat_ndx], *words[parser->lat_hem_ndx], out_lat);
+    if (rc != BT2_GPS_SUCCESS) {
+        return BT2_GPS_ERROR;
+    }
+    rc = daysmins_to_float(words[parser->lon_ndx], *words[parser->lon_hem_ndx], out_lon);
+    if (rc != BT2_GPS_SUCCESS) {
+        return BT2_GPS_ERROR;
+    }
+    return BT2_GPS_SUCCESS;
+}
+
 /*
  * read until we get a location or an error 
  *
@@ -183,56 +245,34 @@ static int get_i_location(
     float * out_lon) {
     int rc;
     char buffer[BT2_GPS_MAX_LINE];
-    char * words[MAX_PARSE_WORDS];
+    char * words[BT2_GPS_MAX_PARSE_WORDS];
     int word_count;
     int done = 0;
 
     while (!done) {
-        logger(BUZZ_DEBUG, "reading a sentence...");
+        logger(BUZZ_DEBUG, "Reading a sentence from the GPS device...");
         rc = read_sentence(gps_handle, buffer, BT2_GPS_MAX_LINE);
         if (rc != BT2_GPS_SUCCESS) {
             return BT2_GPS_ERROR;
         }
-        logger(BUZZ_INFO, "read %s", buffer);
+        logger(BUZZ_INFO, "Read the sentence: %s", buffer);
 
-        word_count = split_sentenct(buffer, BT2_GPS_MAX_LINE, words, MAX_PARSE_WORDS);
+        word_count = split_sentence(buffer, BT2_GPS_MAX_LINE, words, BT2_GPS_MAX_PARSE_WORDS);
         if(word_count < 1) {
             return BT2_GPS_ERROR;
         }
 
-        logger(BUZZ_DEBUG, "Sentence type |%s| |%s|", words[0], GLL_STRING);
-        logger(BUZZ_DEBUG, "parsing %s %d words", words[0], word_count);
-        if (strcmp(GLL_STRING, words[0]) == 0) {
-            if (word_count < 5) {
-                return BT2_GPS_ERROR;
+        logger(BUZZ_DEBUG, "Parsing sentence type %s of %d words", words[0], word_count);
+        for(int i = 0; g_nmea_sentence_map[i].type != NULL; i++) {
+            if (strcmp(g_nmea_sentence_map[i].type, words[0]) == 0) {
+                rc = parse_out_location(&g_nmea_sentence_map[i], words, word_count, out_lat, out_lon);
+                if (word_count < 5) {
+                    return BT2_GPS_ERROR;
+                }   
+                return BT2_GPS_SUCCESS;
             }
-            rc = daysmins_to_float(words[1], *words[2], out_lat);
-            if (rc != BT2_GPS_SUCCESS) {
-                return BT2_GPS_ERROR;
-            }
-            rc = daysmins_to_float(words[3], *words[4], out_lon);
-            if (rc != BT2_GPS_SUCCESS) {
-                return BT2_GPS_ERROR;
-            }
-            return BT2_GPS_SUCCESS;
         }
-        else if(strcmp(RMC_STRING, words[0]) == 0) {
-            if (word_count < 7) {
-                logger(BUZZ_DEBUG, "Bad RMC, not enough words");
-                return BT2_GPS_ERROR;
-            }
-            rc = daysmins_to_float(words[3], *words[4], out_lat);
-            if (rc != BT2_GPS_SUCCESS) {
-                logger(BUZZ_DEBUG, "failed to parse RMC lat %s %s", words[3], *words[4]);
-                return BT2_GPS_ERROR;
-            }
-            rc = daysmins_to_float(words[5], *words[6], out_lon);
-            if (rc != BT2_GPS_SUCCESS) {
-                logger(BUZZ_DEBUG, "failed to parse RMC lon %s %s", words[5], *words[6]);
-                return BT2_GPS_ERROR;
-            }
-            return BT2_GPS_SUCCESS;
-        }
+        logger(BUZZ_DEBUG, "Sentence type %s in unknown.", words[0]);
     }
 
     return BT2_GPS_SUCCESS;

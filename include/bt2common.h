@@ -1,4 +1,4 @@
-#ifdef BT2_COMMON_H
+#ifndef BT2_COMMON_H
 #define BT2_COMMON_H 1
 
 

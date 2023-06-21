@@ -1,3 +1,9 @@
+/*
+ * Logging module
+ *
+ * This is a simple logger. It adds time and level information to log lines that are
+ * then written to stderr
+ */
 #ifndef BUZZ_LOGGER_H
 #define BUZZ_LOGGER_H
 

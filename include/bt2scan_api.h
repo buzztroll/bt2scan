@@ -26,7 +26,6 @@ typedef struct bt2_scan_record_s {
 } bt2_scan_record_t;
 
 
-
 int bt2_scan_init(bt2_scan_t ** out_scan_handle);
 int bt2_scan_destroy(bt2_scan_t * scan_handle);
 
